@@ -70,6 +70,15 @@ my $keyx_cbc = 0;
 
 # ----------------- subroutines --------------------
 
+sub actually_printformat {
+  my ($win, $level, $module, $format, @args) = @_;
+  {
+    local *CORE::GLOBAL::caller = sub { $module };
+    $win->printformat($level, $format, @args);
+  }
+}
+
+
 # blows up a key so it matches 56 bytes.
 sub blowkey
 {
@@ -441,13 +450,11 @@ sub encrypt
     {
       $channel = (split(' ',$command_line,2))[1];
       $message = (split(' ',$command_line,3))[2];
-      print "ACTION: $channel | $message";
     }
     elsif ($command =~ m/\/me/i)
     {
       $channel = $channel_object->{name};
       $message = (split(' ',$command_line,2))[1];
-      print "ME: $channel | $message";
     }
     else
     {
@@ -494,12 +501,12 @@ sub encrypt
     if ($event_type eq 'send_command')
     {
       $server->command("\^ACTION -$server->{tag} $channel $message");
-      $server->print($channel, " ** $own_nick(NOT ENCRYPTED) \00311$message",MSGLEVEL_CLIENTCRAP);    
+      actually_printformat(Irssi::active_win, MSGLEVEL_ACTIONS, 'fe-common/irc', 'own_action', $own_nick, $message);
     }
     else
     {
       $server->command("\^msg -$server->{tag} $channel $message");
-      $server->print($channel, "<$own_nick|{NOT ENCRYPTED}> \00311$message",MSGLEVEL_CLIENTCRAP);
+      actually_printformat(Irssi::active_win, MSGLEVEL_PUBLIC, 'fe-common/core', 'own_msg', $own_nick, $message);
     }
     Irssi::signal_stop();
     return 1;
@@ -560,12 +567,12 @@ sub encrypt
   # output line
   if ($event_type eq 'send_command')
   {
-    $server->print($channel, "** $own_nick($method) \00311$message",MSGLEVEL_CLIENTCRAP);
+    actually_printformat(Irssi::active_win, MSGLEVEL_ACTIONS, 'fe-common/irc', 'own_action', $own_nick, "\00302" . $message);
     $server->command("\^ACTION -$server->{tag} $channel $encrypted_message");
   }
   else
   {
-    $server->print($channel, "<$own_nick|{$method}> \00311$message",MSGLEVEL_CLIENTCRAP); 
+    actually_printformat(Irssi::active_win, MSGLEVEL_PUBLIC, 'fe-common/core', 'own_msg', $own_nick, "\00302" . $message);
     $server->command("\^msg -$server->{tag} $channel $encrypted_message");
   }
   Irssi::signal_stop();
@@ -585,7 +592,7 @@ sub topic {
 	}
 	else {
 		my ($result, $method) = decrypt_msg($key, $topic);
-		Irssi::signal_continue($server, "$nick $channel :{$method} $result");
+		Irssi::signal_continue($server, "$nick $channel : $result");
 	}
 }
 
@@ -650,20 +657,25 @@ sub decrypt
 
   my ($result, $method) = decrypt_msg($key, $message);
 
+  my $color = '';
+  if($result ne $message) {
+    $color = "\00303"; 
+  }
+
   # output result
   if (length($result))
   { 
     if ($event_type eq 'message_action')
     {
-      $server->print($channel, " ** $nick($method) \00311$result", MSGLEVEL_CLIENTCRAP);   
+      actually_printformat($server->window_item_find($channel), MSGLEVEL_ACTIONS, 'fe-common/irc', 'action_public', $nick, $color . $result);
     }
     elsif ($event_type eq 'message_private')
     {
-      $server->print($nick, "<$nick|{$method}> \00311$result", MSGLEVEL_CLIENTCRAP);
+      actually_printformat($server->window_item_find($nick), MSGLEVEL_PUBLIC, 'fe-common/core', 'msg_private', $nick, $color . $result);
     }
     else
     {
-		  $server->print($channel, "<$nick:$channel> \00311$result", MSGLEVEL_CLIENTCRAP);
+      actually_printformat($server->window_item_find($channel), MSGLEVEL_PUBLIC, 'fe-common/core', 'pubmsg', $nick, $color . $result);
     }
   }
   else
@@ -698,7 +710,7 @@ sub decrypt_msg {
   # skip encryption if the message isn't prefixed with an encryption trigger.
   if ($found_prefix == 0)
   {
-    return ("{unencrypted} $message",$method);
+    return ("$message",$method);
   }
 
   # detect encryption type...
@@ -767,7 +779,15 @@ Irssi::command_bind("blowdel","delkey");
 Irssi::command_bind("blowkeyx", "keyx");
 Irssi::command_bind("blowhelp", "blowhelp");
 
-Irssi::signal_add("send text",sub { encrypt 'send_text' => @_ });
+Irssi::signal_add("send text",sub { 
+  my @e = @_;
+
+  foreach(unpack('(A250)*', @e[0])) {
+    @e[0] = $_;
+    encrypt 'send_text' => @e;
+  }
+});
+
 Irssi::signal_add("send command",sub {encrypt 'send_command' => @_});
 
 Irssi::signal_add_first("event topic", "topic");
