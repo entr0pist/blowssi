@@ -1,0 +1,88 @@
+blowssi - an mircryption/FiSH compatible irssi script
+Copyright (C) 2009 John Sennesael
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  
+
+
+Authors:
+--------
+
+  - John "Gothi[c]" Sennesael, donationcoder.com - Author. 
+  - "Tanesha" - dh1080 key exchange & encrypted topic handling patch.
+  - Jesse "Mouser" Reichler, test victim, and good advice.
+
+WWW:
+----
+
+http://linkerror.com/blowssi.cgi
+
+Requires:
+---------
+
+  * perl >= 5.10.0 
+  * Crypt::Blowfish
+  * Crypt::Random
+  * Math::BigInt
+  * Digest::SHA
+  * Crypt::CBC
+  * MIME:Base64
+  * Crypt::ircBlowfish (see bundeled zip file)
+  * Crypt::ircDH1080 (see bundeled tar.gz file)  
+  * irssi >= 0.8.0
+
+Installation:
+-------------
+
+  (first make sure requirements are installed, see Requires above)
+
+  To install, just put the script in ~/.irssi/scripts
+  and put this in your ~/.irssi/startup  :
+
+    /load ~/.irssi/scripts/blowssi.pl
+
+Usage commands: 
+---------------
+
+  /blowon  :  Turns encryption back on after you used /blowoff (it's on by default)
+              note that blowssi will not attempt to encrypt/decrypt in channels without key anyway.
+              This is just for convenience in case you don't want to use the backtick (`) method. (see notes)
+
+  /blowoff :  Causes encryption and decryption to be skipped for all channels, even with key.
+
+  /blowkey channel key :  sets a key for a channel or nickname (for pm queries) 
+                          eg: /blowkey #mircryption test
+                              /blowkey Gothi[c] foo
+                          Note that you must use the # character for channels.
+
+  /blowdel channel     :  Removes a key for a channel or nickname (query), effectively disabeling encryption.
+  /blowkeyx mode user  : Start key exchange with user using specified mode (should be cbc or ecb).
+  /blowhelp       : Show help.
+
+Usage Notes:
+------------
+
+  * When you start a message with a backtick (`), encryption will be bypassed.
+  * When you prepend a key with cbc: CBC encryption will be used instead of ECB.
+  * Keys produced by DH1080 will not be saved, you must do keyx for each session.
+
+Files:
+------
+
+  ~/.irssi/blowssi.conf   : The blowssi configuration file that lists all keys for each channel/nick. 
+                            Syntax is channel:key
+                            example: #mircryption:test
+                                     #foo:cbc:bar
+
+                                     

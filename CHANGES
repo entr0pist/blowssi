@@ -1,0 +1,36 @@
+blowssi - an mircryption/FiSH compatible irssi script
+Copyright (C) 2009 John Sennesael
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ 
+Minor release: 0.2.0 ----------------------------------------------------------
+
+  - Support added for dh1080 key exchange (Thanks Tanesha).
+  - Lots of bug fixes and redesign to Tanesha's key exchange code.
+  - Fixed bug where actions (/me) were not encrypted.  
+
+Minor release: 0.1.0 ----------------------------------------------------------
+
+  - Fixed another bug in cbc encryption.
+  - Fixed a bug where you could not set keys with spaces in them using 
+    the /blowkey command.
+  - ACTION's (/me) are now also proplerly encrypted and decrypted.
+  - mcps prefix, which mirccryption uses, is now also supported. 
+
+Bugfix release: 0.0.2 ---------------------------------------------------------
+
+  - Fixed bug in cbc encryption.
+
+First release: 0.0.1 ---------------------------------------------------------- 
+  - First release.
