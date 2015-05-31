@@ -671,7 +671,13 @@ sub decrypt
     }
     elsif ($event_type eq 'message_private')
     {
-      actually_printformat($server->window_item_find($nick), MSGLEVEL_PUBLIC, 'fe-common/core', 'msg_private', $nick, $color . $result);
+      my $window = $server->window_item_find($nick);
+      if(!$window) {
+        $server->command("QUERY $nick");
+        $window = $server->window_item_find($nick);
+      }
+
+      actually_printformat($window, MSGLEVEL_MSGS, 'fe-common/core', 'pubmsg', $nick, $color . $result);
     }
     else
     {
