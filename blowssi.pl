@@ -635,6 +635,7 @@ sub decrypt
   my $nick = @params[3];
   my $hotmask = @params[4];
 
+
   # Get channel.
   my $channel = @params[5];
 
@@ -644,7 +645,7 @@ sub decrypt
   my $key = $channels{$channel};
 
   # fixup for private messages
-  $key = $channels{$nick} if $event_type eq "message_private";
+  $key = $channels{$nick} if $channel !~ /^#/;
 
   # fixup for key exchange keys.
   $key = substr($key, 5) if $key =~ /^keyx:/;
@@ -667,7 +668,14 @@ sub decrypt
   { 
     if ($event_type eq 'message_action')
     {
-      actually_printformat($server->window_item_find($channel), MSGLEVEL_ACTIONS, 'fe-common/irc', 'action_public', $nick, $color . $result);
+      $channel = $nick if $channel !~ /^#/;
+      my $window = $server->window_item_find($channel);
+      if(!$window) {
+        $server->command("QUERY $channel");
+        $window = $server->window_item_find($channel);
+      }
+
+      actually_printformat($window, MSGLEVEL_ACTIONS, 'fe-common/irc', 'action_public', $nick, $color . $result);
     }
     elsif ($event_type eq 'message_private')
     {
