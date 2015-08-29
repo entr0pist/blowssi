@@ -491,12 +491,17 @@ sub encrypt {
 
     # local declarations
     my $encrypted_message = '';
-    my $len = 0;       
 
     # skip if no key
     if(!$key) {
         return 0;
     }   
+
+    if(length($message) < 296) {
+        $message .= "\x00" x (296 - length($message));
+    }
+
+    $message = substr($message, 0, 296);
 
     # check if we're doing cbc or not
     my $method = 'unknown';
@@ -753,7 +758,7 @@ Irssi::command_bind("blowhelp", "blowhelp");
 Irssi::signal_add("send text", sub { 
     my @e = @_;
 
-    foreach(unpack('(A250)*', @e[0])) {
+    foreach(unpack('(A296)*', @e[0])) {
         @e[0] = $_;
         encrypt 'send_text' => @e;
     }
