@@ -17,16 +17,3 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 Known bugs for blowssi 0.2.0 --------------------------------------------------
 
   - DCC chat, /notice and /ctcp are not encrypted.
-  - No automatic new query window on new crypt messages:
-    When keyx is initiated by someone else, and no query window is open, their
-    text will go into the status window until a query window is opened by the 
-    user.
-
-Known bugs for blowssi 0.1.0 --------------------------------------------------
-
-  - There have been problems reported with encryption/decryption 
-    for scandinavian characters, umlauts, unicode,...
-
-  - DCC chat, /notice and /ctcp are not encrypted.
-
-  - Actions (/me) not encrypted.
