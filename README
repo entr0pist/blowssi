@@ -74,7 +74,7 @@ Usage Notes:
 ------------
 
   * When you start a message with a backtick (`), encryption will be bypassed.
-  * When you prepend a key with cbc: CBC encryption will be used instead of ECB.
+  * When you prepend a key with ecb: ECB encryption will be used instead of CBC (for backwards compatibility reasons only).
   * Keys produced by DH1080 will not be saved, you must do keyx for each session.
 
 Files:

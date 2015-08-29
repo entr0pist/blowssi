@@ -252,7 +252,7 @@ sub blowhelp {
     Irssi::print("/blowon                         Turn blowfish back on.");
     Irssi::print("/blowoff                        Temporarily disable all blowfish.");
     Irssi::print("/blowkey <user|chan> <key>      Statically set key for a channel.");
-    Irssi::print("/blowkeyx <cbc|ebc> <user|chan> Perform DH1080 key exchange with user.");
+    Irssi::print("/blowkeyx <cbc|ecb> <user|chan> Perform DH1080 key exchange with user.");
     Irssi::print("/blowdel <user|chan>            Remove key for user.");
     Irssi::print("");
 }
@@ -340,8 +340,8 @@ sub keyx_handler {
             Irssi::print("Negotiated key with $user");
         }
 
-        if ($keyx_cbc == 1) {
-            $secret = "cbc:$secret";
+        if ($keyx_cbc == 0) {
+            $secret = "ecb:$secret";
         }
 
         Irssi::print("Debug: key = $secret");
@@ -491,7 +491,7 @@ sub encrypt {
 
     # local declarations
     my $encrypted_message = '';
-    my $len=0;       
+    my $len = 0;       
 
     # skip if no key
     if(!$key) {
@@ -500,9 +500,8 @@ sub encrypt {
 
     # check if we're doing cbc or not
     my $method = 'unknown';
-    if(substr($key,0,4) eq 'cbc:') {
+    if(substr($key,0,4) ne 'ecb:') {
         # encrypt using cbc
-        $key = substr($key,4); # chop of the "cbc:"
         $key = blowkey($key); #expand >= 8 bytes.
 
         my $randomiv = generate_random_string(8);  
@@ -530,6 +529,7 @@ sub encrypt {
         $method = 'ecb';
 
         # set key
+        $key = substr($key,4); # chop of the "ecb:"
         $blowfish->set_key($key);
 
         # encrypt using blowfish
@@ -686,9 +686,8 @@ sub decrypt_msg {
     }
 
     # detect encryption type...
-    if(substr($key, 0, 4) eq 'cbc:' && substr($message, 0, 1) eq '*') {
+    if(substr($key, 0, 4) ne 'ecb:' && substr($message, 0, 1) eq '*') {
         # decrypt with cbc    
-        $key = substr($key, 4); # get rid of "cbc:" from key
 
         # remove the asterisk from data
         $message = substr($message, 1);
@@ -715,11 +714,12 @@ sub decrypt_msg {
         $cipher->{literal_key} = 1; # hack around Crypt::CBC limitation/bug
         $result = $cipher->decrypt($message);
         $method = 'cbc';
-    } elsif (substr($key,0,4) eq 'cbc:' && substr($message, 0, 1) ne '*') {
+    } elsif(substr($key,0,4) ne 'ecb:' && substr($message, 0, 1) ne '*') {
         return ('', 'cbc');
     } else {
         # decrypt with blowfish
         $method = 'ecb';
+        $key = substr($key, 4); # get rid of "ecb:" from key
         $blowfish->set_key($key);
         $result = $blowfish->decrypt($message);
     }
