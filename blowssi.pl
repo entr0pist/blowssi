@@ -16,8 +16,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
-
 # -------------------- includes --------------------
 
 # include ircBlowfish
@@ -38,8 +36,6 @@ use vars qw($VERSION %IRSSI);
 # i don't trust myself
 use strict;
 
-# ----------------- package info  ------------------
-
 # irssi package info
 my $VERSION = "0.2.0";
 my %IRSSI = (
@@ -50,8 +46,6 @@ my %IRSSI = (
     license => 'GNU GPL v3',
     url => 'http://linkerror.com/blowssi.cgi'
 );
-
-# ----------------- init globals -------------------
 
 # default prefix
 my @prefixes = ('+OK ', 'mcps ');
@@ -68,8 +62,7 @@ my $dh1080 = new Crypt::ircDH1080;
 # Are we using cbc with keyx?
 my $keyx_cbc = 0;
 
-# ----------------- subroutines --------------------
-
+# https://github.com/shabble/irssi-docs/wiki/Guide#Use_Existing_Formats_for_Consistency
 sub actually_printformat {
     my ($win, $level, $module, $format, @args) = @_;
     {
@@ -80,7 +73,6 @@ sub actually_printformat {
         $win->printformat($level, $format, @args);
     }
 }
-
 
 # blows up a key so it matches 56 bytes.
 sub blowkey {
@@ -193,7 +185,6 @@ sub delkey {
 
     # print status
     Irssi::print("Key deleted, and no longer using encryption for $channel");
-
 }
 
 # calculates privmsg length.
@@ -225,7 +216,7 @@ sub setkey {
     # parse params
     my $param = @_[0];
     my $channel = (split(' ', $param,2))[0];
-    my $key = (split(' ',$param, 2))[1];
+    my $key = (split(' ', $param, 2))[1];
 
     unless($key && $channel) {
         Irssi::print("Current configuration..");
@@ -421,7 +412,6 @@ sub encrypt {
         # Get channel or nickname.    
         my $channel_object = @params[3];
         $channel = $channel_object->{name};
-
     # Extract params for send_command events.
     } elsif($event_type eq 'send_command') { 
         # Get command the user entered (eg: /me says hi)
@@ -684,7 +674,7 @@ sub decrypt_msg {
         my $ppfix = substr $message, 0, length($prefix);
         if($ppfix eq $prefix) { 
             # remove prefix
-            $message = substr $message,length($prefix);
+            $message = substr $message, length($prefix);
             $found_prefix = 1;
             last;
         }
@@ -696,7 +686,7 @@ sub decrypt_msg {
     }
 
     # detect encryption type...
-    if(substr($key, 0, 4) eq 'cbc:') {
+    if(substr($key, 0, 4) eq 'cbc:' && substr($message, 0, 1) eq '*') {
         # decrypt with cbc    
         $key = substr($key, 4); # get rid of "cbc:" from key
 
@@ -725,6 +715,8 @@ sub decrypt_msg {
         $cipher->{literal_key} = 1; # hack around Crypt::CBC limitation/bug
         $result = $cipher->decrypt($message);
         $method = 'cbc';
+    } elsif (substr($key,0,4) eq 'cbc:' && substr($message, 0, 1) ne '*') {
+        return ('', 'cbc');
     } else {
         # decrypt with blowfish
         $method = 'ecb';
@@ -752,13 +744,13 @@ Irssi::print("blowssi script $VERSION loaded\n");
 
 # register irssi commands
 Irssi::command_bind("blowon", "blowon");
-Irssi::command_bind("blowoff","blowoff");
+Irssi::command_bind("blowoff", "blowoff");
 Irssi::command_bind("blowkey", "setkey");
 Irssi::command_bind("blowdel", "delkey");
 Irssi::command_bind("blowkeyx", "keyx");
 Irssi::command_bind("blowhelp", "blowhelp");
 
-Irssi::signal_add("send text",sub { 
+Irssi::signal_add("send text", sub { 
     my @e = @_;
 
     foreach(unpack('(A250)*', @e[0])) {
