@@ -468,7 +468,7 @@ sub encrypt {
     return if $message =~ /^DH1080_FINISH/;
 
     # skip if line starts with `
-    if(substr($message,0,1) eq '`') {
+    if(substr($message, 0, 1) eq '`') {
         $message = substr($message,1);
 
         if($event_type eq 'send_command') {
@@ -505,7 +505,11 @@ sub encrypt {
 
     # check if we're doing cbc or not
     my $method = 'unknown';
-    if(substr($key,0,4) ne 'ecb:') {
+    if(substr($key, 0, 4) ne 'ecb:') {
+        if(substr($key, 0, 4) eq 'cbc:') {
+            $key = substr($key, 4);
+        }
+
         # encrypt using cbc
         $key = blowkey($key); #expand >= 8 bytes.
 
@@ -703,6 +707,10 @@ sub decrypt_msg {
         # get the IV (first 8 bytes) and remove it from data;
         my $randomiv = substr($message, 0, 8);
         $message = substr($message, 8);
+
+        if(substr($key, 0, 4) eq 'cbc:') {
+            $key = substr($key, 4);
+        }
 
         # make sure key > 8 bytes.
         $key = blowkey($key);
