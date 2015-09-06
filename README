@@ -14,9 +14,9 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
   
-Warning: If you're upgrading from an older version of Irssi, make sure
+Warning: If you're upgrading from an older version of blowssi, make sure
 to change your keys in .irssi/blowssi.conf so that ecb keys are prefixed
-with 'ecb:' and cbc has no prefix (opposite).
+with 'ecb:' (or, preferably, replace them with cbc keys).
 
 Authors:
 --------
