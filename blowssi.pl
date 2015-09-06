@@ -482,9 +482,7 @@ sub encrypt {
             actually_printformat(Irssi::active_win, MSGLEVEL_ACTIONS, 'fe-common/irc',
                 'own_action', $own_nick, $message);
         } elsif($event_type eq 'send_command' and $topic) {
-            $server->command("\^TOPIC -$server->{tag} $channel $message");
-            actually_printformat(Irssi::active_win, MSGLEVEL_ACTIONS, 'fe-common/irc',
-                'own_topic', $own_nick, $message);
+            $server->command("TOPIC $channel $message");
         } else {
             $server->command("\^msg -$server->{tag} $channel $message");
             actually_printformat(Irssi::active_win, MSGLEVEL_PUBLIC, 'fe-common/core',
