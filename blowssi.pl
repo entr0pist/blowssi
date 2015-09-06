@@ -136,6 +136,7 @@ sub loadconf {
     }
 
     Irssi::print("\00314- configuration file loaded.");
+    Irssi::settings_add_bool('fish', 'use_colors', 1);
     return 1;
 }
 
@@ -545,14 +546,19 @@ sub encrypt {
         $encrypted_message = $prefixes[0] . $blowfish->encrypt($message);  
     }
 
+    my $color = '';
+    if(Irssi::settings_get_bool('use_colors')) {
+        $color = "\00302";
+    }
+
     # output line
     if($event_type eq 'send_command') {
         actually_printformat(Irssi::active_win, MSGLEVEL_ACTIONS, 'fe-common/irc',
-            'own_action', $own_nick, "\00302" . $message);
+            'own_action', $own_nick, $color . $message);
         $server->command("\^ACTION -$server->{tag} $channel $encrypted_message");
     } else {
         actually_printformat(Irssi::active_win, MSGLEVEL_PUBLIC, 'fe-common/core',
-            'own_msg', $own_nick, "\00302" . $message);
+            'own_msg', $own_nick, $color . $message);
         $server->command("\^msg -$server->{tag} $channel $encrypted_message");
     }
 
@@ -633,7 +639,7 @@ sub decrypt {
     my ($result, $method) = decrypt_msg($key, $message);
 
     my $color = '';
-    if($result ne $message) {
+    if($result ne $message && Irssi::settings_get_bool('use_colors')) {
         $color = "\00303"; 
     }
 

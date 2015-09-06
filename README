@@ -78,6 +78,7 @@ Usage Notes:
   * When you start a message with a backtick (`), encryption will be bypassed.
   * When you prepend a key with ecb: ECB encryption will be used instead of CBC (for backwards compatibility reasons only).
   * Keys produced by DH1080 will not be saved, you must do keyx for each session.
+  * Toggle the use_colors setting to turn off blowssi coloring.
 
 Files:
 ------
