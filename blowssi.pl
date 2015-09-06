@@ -400,6 +400,7 @@ sub encrypt {
 
     # Will hold message text.
     my $message = '';
+    my $topic = 0;
 
     # Extract params for send_text events.
     if($event_type eq 'send_text') {
@@ -437,6 +438,10 @@ sub encrypt {
         } elsif($command =~ m/\/me/i) {
             $channel = $channel_object->{name};
             $message = (split(' ', $command_line,2))[1];
+        } elsif($command =~ m/\/topic/i) {
+            $channel = $channel_object->{name};
+            $message = (split(' ', $command_line,2))[1];
+            $topic = 1;
         } else {
             # The only send_command's we handle here are /me and /action...
             return 0;
@@ -472,10 +477,14 @@ sub encrypt {
     if(substr($message, 0, 1) eq '`') {
         $message = substr($message,1);
 
-        if($event_type eq 'send_command') {
+        if($event_type eq 'send_command' and !$topic) {
             $server->command("\^ACTION -$server->{tag} $channel $message");
             actually_printformat(Irssi::active_win, MSGLEVEL_ACTIONS, 'fe-common/irc',
                 'own_action', $own_nick, $message);
+        } elsif($event_type eq 'send_command' and $topic) {
+            $server->command("\^TOPIC -$server->{tag} $channel $message");
+            actually_printformat(Irssi::active_win, MSGLEVEL_ACTIONS, 'fe-common/irc',
+                'own_topic', $own_nick, $message);
         } else {
             $server->command("\^msg -$server->{tag} $channel $message");
             actually_printformat(Irssi::active_win, MSGLEVEL_PUBLIC, 'fe-common/core',
@@ -552,10 +561,12 @@ sub encrypt {
     }
 
     # output line
-    if($event_type eq 'send_command') {
+    if($event_type eq 'send_command' and !$topic) {
         actually_printformat(Irssi::active_win, MSGLEVEL_ACTIONS, 'fe-common/irc',
             'own_action', $own_nick, $color . $message);
         $server->command("\^ACTION -$server->{tag} $channel $encrypted_message");
+    } elsif($event_type eq 'send_command' and $topic) {
+        $server->command("TOPIC $channel $encrypted_message");
     } else {
         actually_printformat(Irssi::active_win, MSGLEVEL_PUBLIC, 'fe-common/core',
             'own_msg', $own_nick, $color . $message);
@@ -567,18 +578,14 @@ sub encrypt {
 }
 
 sub topic {
-    my ($server, $msg) = @_;
-
-    my ($nick, $channel) = $msg =~ /^([^\s]+)\s+([^\s]+)/;
-    my ($topic) = $msg =~ /:(.*)/;
+    my ($server, $msg, $nick) = @_;
+    my ($channel, $topic) = $msg =~ /^([^\s]+)\s+:(.*)/;
 
     my $key = $channels{$channel};
 
-    if(!$key) {
-        return;
-    } else {
+    if($key) {
         my ($result, $method) = decrypt_msg($key, $topic);
-        Irssi::signal_continue($server, "$nick $channel : $result");
+        Irssi::signal_continue($server, "$channel :$result", $nick);
     }
 }
 
