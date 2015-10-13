@@ -47,8 +47,6 @@ my %IRSSI = (
     url => 'http://linkerror.com/blowssi.cgi'
 );
 
-# default prefix
-my @prefixes = ('+OK ', 'mcps ');
 # crypt enabled by default
 my $docrypt = 1;
 # associative array for channel->key
@@ -253,31 +251,18 @@ sub blowhelp {
     Irssi::print("/blowon                         Turn blowfish back on.");
     Irssi::print("/blowoff                        Temporarily disable all blowfish.");
     Irssi::print("/blowkey <user|chan> <key>      Statically set key for a channel.");
-    Irssi::print("/blowkeyx <cbc|ecb> <user|chan> Perform DH1080 key exchange with user.");
+    Irssi::print("/blowkeyx <user|chan>           Perform DH1080 key exchange with user.");
     Irssi::print("/blowdel <user|chan>            Remove key for user.");
     Irssi::print("");
 }
 
 sub keyx {
     # get params
-    my ($params, $server, $winit) = @_;  
-    my ($method, $user) = split(/\s/, $params);
-
-    # Irssi::print("Debug: PARAMS='$params' USER='$user' METHOD='$method'");
-    # check encryption method validity
-    if(!$method) {
-        Irssi::print("Error: no method specified. Specify either cbc or ecb.");
-    }
-
-    if(($method ne 'cbc') and ($method ne 'ecb')) {
-        Irssi::print("Error: unknown method: $method. Specify either cbc or ecb." .
-            " Correct syntax is /blowkeyx method nickname");
-        return 1;
-    }
+    my ($user, $server, $winit) = @_;  
 
     # check user validity
     if(!$user) {
-        Irssi::print("Error: no user specified. Syntax is /blowkeyx method nickname");
+        Irssi::print("Error: no user specified. Syntax is /blowkeyx nickname");
         return 1;
     }
 
@@ -286,18 +271,10 @@ sub keyx {
 
     # get pubkey, store header...
     my $pubkey = $dh1080->public_key;  
-    my $keyx_header="DH1080_INIT";
+    my $keyx_header="DH1080_INIT_cbc";
     
-    # manipulate header for cbc if needed.
-    if($method eq 'cbc') {
-        $keyx_header .= '_cbc';
-        $keyx_cbc = 1;
-    } else {
-        $keyx_cbc = 0;
-    }
-
     $server->command("\^notice $user $keyx_header $pubkey");
-    Irssi::print("KeyX started for $user using $method");
+    Irssi::print("KeyX started for $user");
 }
 
 sub keyx_handler {
@@ -307,19 +284,7 @@ sub keyx_handler {
 
     # Uncomment for debug.
     # Irssi::print("$event_type keyx_finish on $message"); 
-
-    my ($command, $cbcflag, $peer_public) = $message =~ /DH1080_(INIT|FINISH)(_cbc)? (.*)/i;
-    if(!$peer_public) {
-        # (_cbc)? did not match, so $cbcflag is now really $peer_public. fixing that:
-        $peer_public = $cbcflag;
-        $cbcflag = '';
-    }
-
-    if($cbcflag eq '_cbc') {
-        $keyx_cbc = 1;
-    } else {
-        $keyx_cbc = 0;
-    }
+    my ($command, $peer_public) = $message =~ /DH1080_(INIT|FINISH)_cbc (.*)/i;
 
     return 1 unless $command && $peer_public;
 
@@ -329,20 +294,12 @@ sub keyx_handler {
     if($secret) {
         if($command =~ /INIT/i) {      
             my $public = $dh1080->public_key;
-            my $keyx_header = 'DH1080_FINISH';
-
-            if($keyx_cbc == 1) {
-                $keyx_header .= '_cbc';
-            }
+            my $keyx_header = 'DH1080_FINISH_cbc';
 
             $server->command("\^notice $user $keyx_header $public");
             Irssi::print("Received key from $user -- sent back our pubkey.");
         } else {
             Irssi::print("Negotiated key with $user");
-        }
-
-        if ($keyx_cbc == 0) {
-            $secret = "ecb:$secret";
         }
 
         Irssi::print("Debug: key = $secret");
@@ -511,47 +468,34 @@ sub encrypt {
 
     $message = substr($message, 0, 280);
 
-    # check if we're doing cbc or not
-    my $method = 'unknown';
-    if(substr($key, 0, 4) ne 'ecb:') {
-        if(substr($key, 0, 4) eq 'cbc:') {
-            $key = substr($key, 4);
-        }
-
-        # encrypt using cbc
-        $key = blowkey($key); #expand >= 8 bytes.
-
-        my $randomiv = generate_random_string(8);  
-        my $cipher = Crypt::CBC->new(
-            -key => $key,
-            -cipher => 'Blowfish',
-            -header => 'none',
-            -literal_key => 0,
-            -iv => $randomiv,
-            -padding => 'null',
-            -keysize => 56
-        );
-
-        $cipher->{literal_key} = 1; # hack around Crypt:CBC limitation/bug
-
-        # my $cbc = $cipher->encrypt($randomiv . $message);
-        my $cbc = $randomiv . $cipher->encrypt($message);
-
-        # uncomment below for debug
-        # Irssi::print("randomiv = $randomiv \n \$cbc = $cbc\n");
-
-        $encrypted_message = $prefixes[0] . '*' . encode_base64($cbc);
-        $method = 'cbc';
-    } else {
-        $method = 'ecb';
-
-        # set key
-        $key = substr($key,4); # chop of the "ecb:"
-        $blowfish->set_key($key);
-
-        # encrypt using blowfish
-        $encrypted_message = $prefixes[0] . $blowfish->encrypt($message);  
+    # ecb keys automatically upgraded to cbc. sucks to be you if you're still using ecb.
+    if($key =~ /^(cbc|ecb):/) {
+        $key = substr($key, 4);
     }
+
+    # encrypt using cbc
+    $key = blowkey($key); #expand >= 8 bytes.
+
+    my $randomiv = generate_random_string(8);  
+    my $cipher = Crypt::CBC->new(
+        -key => $key,
+        -cipher => 'Blowfish',
+        -header => 'none',
+        -literal_key => 0,
+        -iv => $randomiv,
+        -padding => 'null',
+        -keysize => 56
+    );
+
+    $cipher->{literal_key} = 1; # hack around Crypt:CBC limitation/bug
+
+    # my $cbc = $cipher->encrypt($randomiv . $message);
+    my $cbc = $randomiv . $cipher->encrypt($message);
+
+    # uncomment below for debug
+    # Irssi::print("randomiv = $randomiv \n \$cbc = $cbc\n");
+
+    $encrypted_message = '+OK *' . encode_base64($cbc);
 
     my $color = '';
     if(Irssi::settings_get_bool('use_colors')) {
@@ -577,13 +521,18 @@ sub encrypt {
 
 sub topic {
     my ($server, $msg, $nick) = @_;
-    my ($channel, $topic) = $msg =~ /^([^\s]+)\s+:(.*)/;
+    my ($user, $channel, $topic) = $msg =~ /^([^\s]+\s+)?([^\s]+)\s+:(.*)/;
+
+    if(!$topic) {
+        $topic = $channel;
+        $channel = $user;
+        $user = '';
+    }
 
     my $key = $channels{$channel};
-
     if($key) {
-        my ($result, $method) = decrypt_msg($key, $topic);
-        Irssi::signal_continue($server, "$channel :$result", $nick);
+        my $result = decrypt_msg($key, $topic);
+        Irssi::signal_continue($server, "$user$channel :$result", $nick);
     }
 }
 
@@ -617,10 +566,10 @@ sub decrypt {
         return 0;
     }
 
-    # Get message text, nickname of other party, hotmask of other party.
+    # Get message text, nickname of other party, hostmask of other party.
     my $message = @params[2];
     my $nick = @params[3];
-    my $hotmask = @params[4];
+    my $hostmask = @params[4];
 
     # Get channel.
     my $channel = @params[5];
@@ -641,7 +590,7 @@ sub decrypt {
         return 0;
     }
 
-    my ($result, $method) = decrypt_msg($key, $message);
+    my $result = decrypt_msg($key, $message);
 
     my $color = '';
     if($result ne $message && Irssi::settings_get_bool('use_colors')) {
@@ -685,71 +634,42 @@ sub decrypt {
 sub decrypt_msg {
     my ($key, $message) = @_;
 
-    my $method = '';
     my $result = '';
 
-    # check for prefix
-    my $found_prefix = 0;
-    foreach my $prefix (@prefixes) {
-        my $ppfix = substr $message, 0, length($prefix);
-        if($ppfix eq $prefix) { 
-            # remove prefix
-            $message = substr $message, length($prefix);
-            $found_prefix = 1;
-            last;
-        }
-    }
-
     # skip encryption if the message isn't prefixed with an encryption trigger.
-    if($found_prefix == 0) {
-        return ("$message",$method);
+    if($message !~ /^\+OK \*.*/) {
+        return $message;
     }
 
-    # detect encryption type...
-    if(substr($key, 0, 4) ne 'ecb:' && substr($message, 0, 1) eq '*') {
-        # decrypt with cbc    
-
-        # remove the asterisk from data
-        $message = substr($message, 1);
-
-        # base64 decode the rest
-        $message = decode_base64($message);
-
-        # get the IV (first 8 bytes) and remove it from data;
-        my $randomiv = substr($message, 0, 8);
-        $message = substr($message, 8);
-
-        if(substr($key, 0, 4) eq 'cbc:') {
-            $key = substr($key, 4);
-        }
-
-        # make sure key > 8 bytes.
-        $key = blowkey($key);
-
-        my $cipher = Crypt::CBC->new(
-            -key => $key,
-            -cipher => 'Blowfish',
-            -header => 'none',
-            -literal_key => 0,
-            -padding => 'null',
-            -iv => $randomiv
-        );
-
-        $cipher->{literal_key} = 1; # hack around Crypt::CBC limitation/bug
-        $result = $cipher->decrypt($message);
-        $method = 'cbc';
-    } elsif(substr($key,0,4) ne 'ecb:' && substr($message, 0, 1) ne '*') {
-        return ('', 'cbc');
-    } else {
-        # decrypt with blowfish
-        $method = 'ecb';
-        $key = substr($key, 4); # get rid of "ecb:" from key
-        $blowfish->set_key($key);
-        $result = $blowfish->decrypt($message);
+    $message = substr($message, 5);
+    if($key =~ /^(ecb|cbc):/) {
+        $key = substr($key, 4);
     }
+    
+    # base64 decode the rest
+    $message = decode_base64($message);
+
+    # get the IV (first 8 bytes) and remove it from data;
+    my $randomiv = substr($message, 0, 8);
+    $message = substr($message, 8);
+
+    # make sure key > 8 bytes.
+    $key = blowkey($key);
+
+    my $cipher = Crypt::CBC->new(
+        -key => $key,
+        -cipher => 'Blowfish',
+        -header => 'none',
+        -literal_key => 0,
+        -padding => 'null',
+        -iv => $randomiv
+    );
+
+    $cipher->{literal_key} = 1; # hack around Crypt::CBC limitation/bug
+    $result = $cipher->decrypt($message);
 
     chomp $result;
-    return ($result, $method);
+    return $result;
 }
 
 # dcc proxy function because params for dcc messages are different
