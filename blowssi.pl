@@ -422,6 +422,8 @@ sub encrypt {
     # Get the user's nickname (own nickname).
     my $own_nick = $server->{nick};
 
+    my $action = $event_type eq 'send_command' and !$topic;
+
     # If there's no text to encrypt, then don't try.
     if(length($message) == 0) {
         return;
@@ -434,7 +436,7 @@ sub encrypt {
     if(substr($message, 0, 1) eq '`') {
         $message = substr($message,1);
 
-        if($event_type eq 'send_command' and !$topic) {
+        if($action) {
             $server->command("\^ACTION -$server->{tag} $channel $message");
             actually_printformat(Irssi::active_win, MSGLEVEL_ACTIONS, 'fe-common/irc',
                 'own_action', $own_nick, $message);
@@ -462,8 +464,14 @@ sub encrypt {
         return 0;
     }   
 
+    my $original = $message;
+
     if(length($message) < 280) {
         $message .= "\x00" x (280 - length($message));
+    }
+
+    if($action) {
+        $message = "\x01ACTION $message\x01";
     }
 
     $message = substr($message, 0, 280);
@@ -503,15 +511,15 @@ sub encrypt {
     }
 
     # output line
-    if($event_type eq 'send_command' and !$topic) {
+    if($action) {
         actually_printformat(Irssi::active_win, MSGLEVEL_ACTIONS, 'fe-common/irc',
-            'own_action', $own_nick, $color . $message);
-        $server->command("\^ACTION -$server->{tag} $channel $encrypted_message");
+            'own_action', $own_nick, $color . $original);
+        $server->command("\^msg -$server->{tag} $channel $encrypted_message");
     } elsif($event_type eq 'send_command' and $topic) {
         $server->command("TOPIC $channel $encrypted_message");
     } else {
         actually_printformat(Irssi::active_win, MSGLEVEL_PUBLIC, 'fe-common/core',
-            'own_msg', $own_nick, $color . $message);
+            'own_msg', $own_nick, $color . $original);
         $server->command("\^msg -$server->{tag} $channel $encrypted_message");
     }
 
@@ -599,7 +607,7 @@ sub decrypt {
 
     # output result
     if(length($result)) { 
-        if($event_type eq 'message_action') {
+        if($event_type eq 'message_action' or $result =~ /^\x01ACTION (.*)\x01?$/) {
             $channel = $nick if $channel !~ /^#/;
 
             my $window = $server->window_item_find($channel);
@@ -607,6 +615,8 @@ sub decrypt {
                 $server->command("QUERY $channel");
                 $window = $server->window_item_find($channel);
             }
+
+            $result =~ s/^\x01ACTION ([^\x01]+)\x01?$/\1/;
 
             actually_printformat($window, MSGLEVEL_ACTIONS, 'fe-common/irc',
                 'action_public', $nick, $color . $result);
