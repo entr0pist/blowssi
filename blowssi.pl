@@ -271,7 +271,7 @@ sub keyx {
 
     # get pubkey, store header...
     my $pubkey = $dh1080->public_key;  
-    my $keyx_header="DH1080_INIT_cbc";
+    my $keyx_header="DH1080_INIT";
     
     $server->command("\^notice $user $keyx_header $pubkey");
     Irssi::print("KeyX started for $user");
@@ -284,7 +284,7 @@ sub keyx_handler {
 
     # Uncomment for debug.
     # Irssi::print("$event_type keyx_finish on $message"); 
-    my ($command, $peer_public) = $message =~ /DH1080_(INIT|FINISH)_cbc (.*)/i;
+    my ($command, $peer_public) = $message =~ /DH1080_(INIT|FINISH) (.*)/i;
 
     return 1 unless $command && $peer_public;
 
@@ -294,7 +294,7 @@ sub keyx_handler {
     if($secret) {
         if($command =~ /INIT/i) {      
             my $public = $dh1080->public_key;
-            my $keyx_header = 'DH1080_FINISH_cbc';
+            my $keyx_header = 'DH1080_FINISH';
 
             $server->command("\^notice $user $keyx_header $public");
             Irssi::print("Received key from $user -- sent back our pubkey.");
@@ -647,8 +647,12 @@ sub decrypt_msg {
     my $result = '';
 
     # skip encryption if the message isn't prefixed with an encryption trigger.
-    if($message !~ /^\+OK \*.*/) {
+    if($message !~ /^(\[[0-9][0-9]:[0-9][0-9]:[0-9][0-9]\] )?\+OK \*.*/) {
         return $message;
+    }
+
+    if($message =~ /^\[/) {
+        $message = substr($message, 11);
     }
 
     $message = substr($message, 5);
