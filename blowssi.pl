@@ -422,7 +422,7 @@ sub encrypt {
     # Get the user's nickname (own nickname).
     my $own_nick = $server->{nick};
 
-    my $action = $event_type eq 'send_command' and !$topic;
+    my $action = ($event_type eq 'send_command' and !$topic);
 
     # If there's no text to encrypt, then don't try.
     if(length($message) == 0) {
