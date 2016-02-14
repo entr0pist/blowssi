@@ -274,7 +274,7 @@ sub keyx {
     my $keyx_header="DH1080_INIT";
     
     $server->command("\^notice $user $keyx_header $pubkey");
-    Irssi::print("KeyX started for $user");
+    Irssi::print("KeyX started for $user.");
 }
 
 sub keyx_handler {
@@ -298,9 +298,13 @@ sub keyx_handler {
 
             $server->command("\^notice $user $keyx_header $public");
             Irssi::print("Received key from $user -- sent back our pubkey.");
-        } else {
+                } else {
             Irssi::print("Negotiated key with $user");
         }
+
+        Irssi::print("\x0307WARNING\x03: this key exchange is not authenticated and is completely insecure.");
+        Irssi::print('Use at your own risk. For details see:');
+        Irssi::print('https://github.com/entr0pist/fakeircd/blob/rude/modules/Decrypt.py.disabled');
 
         Irssi::print("Debug: key = $secret");
         $channels{$user} = 'keyx:'.$secret;
